@@ -70,7 +70,7 @@
                                             @if($notification->chantier)
                                                 <span class="flex items-center">
                                                     <i class="fas fa-building mr-1"></i>
-                                                    <a href="{{ route('chantiers.show', $notification->chantier) }}" 
+                                                    <a href="{{ route('notifications.view', $notification) }}" 
                                                        class="text-primary-600 hover:text-primary-800 font-medium">
                                                         {{ $notification->chantier->titre }}
                                                     </a>
@@ -79,21 +79,29 @@
                                         </div>
                                     </div>
                                     
-                                    <!-- Actions -->
+                                    <!-- Actions MISES À JOUR -->
                                     <div class="flex items-center space-x-2 ml-4">
                                         @if(!$notification->lu)
                                             <form method="POST" action="{{ route('notifications.read', $notification) }}" class="inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-outline-primary btn-sm" title="Marquer comme lu">
+                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="Marquer comme lu seulement">
                                                     <i class="fas fa-check"></i>
                                                 </button>
                                             </form>
                                         @endif
                                         @if($notification->chantier)
-                                            <a href="{{ route('chantiers.show', $notification->chantier) }}" 
+                                            <a href="{{ route('notifications.view', $notification) }}" 
                                                class="btn btn-primary btn-sm">
-                                                <i class="fas fa-eye mr-1"></i>Voir
+                                                <i class="fas fa-eye mr-1"></i>Voir{{ !$notification->lu ? ' & Marquer lu' : '' }}
                                             </a>
+                                        @else
+                                            {{-- Pour les notifications sans chantier --}}
+                                            @if(!$notification->lu)
+                                                <a href="{{ route('notifications.view', $notification) }}" 
+                                                   class="btn btn-primary btn-sm">
+                                                    <i class="fas fa-check mr-1"></i>Marquer comme lu
+                                                </a>
+                                            @endif
                                         @endif
                                     </div>
                                 </div>

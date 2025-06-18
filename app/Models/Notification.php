@@ -1,10 +1,10 @@
 <?php
-// app/Models/<
-// app/Models/Notification.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Events\NotificationCreated;
 
 class Notification extends Model
 {
@@ -19,7 +19,13 @@ class Notification extends Model
         'lu_at' => 'datetime',
     ];
 
-    // Relations
+    protected static function booted()
+    {
+        static::created(function ($notification) {
+            event(new NotificationCreated($notification));
+        });
+    }
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -30,7 +36,6 @@ class Notification extends Model
         return $this->belongsTo(Chantier::class);
     }
 
-    // Méthodes
     public function marquerLue()
     {
         $this->update([

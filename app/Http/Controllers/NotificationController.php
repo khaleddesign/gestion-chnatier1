@@ -42,4 +42,30 @@ class NotificationController extends Controller
         
         return redirect()->back()->with('success', 'Toutes les notifications ont été marquées comme lues.');
     }
+
+    /**
+     * Voir une notification et la marquer comme lue
+     */
+    public function viewAndMarkAsRead(Notification $notification)
+    {
+        // Vérifier les autorisations
+        if ($notification->user_id !== Auth::id()) {
+            abort(403, 'Accès non autorisé à cette notification.');
+        }
+        
+        // Marquer comme lue si elle ne l'est pas déjà
+        if (!$notification->lu) {
+            $notification->marquerLue();
+        }
+        
+        // Rediriger vers le chantier si disponible
+        if ($notification->chantier) {
+            return redirect()->route('chantiers.show', $notification->chantier)
+                            ->with('success', 'Notification marquée comme lue.');
+        }
+        
+        // Sinon retourner aux notifications avec un message
+        return redirect()->route('notifications.index')
+                        ->with('success', 'Notification marquée comme lue.');
+    }
 }

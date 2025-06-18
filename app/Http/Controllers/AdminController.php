@@ -46,8 +46,7 @@ class AdminController extends Controller
                                             ->take(10)
                                             ->get();
 
-        return view('admin.index', compact('stats', 'chantiers_recents', 'notifications_recentes'));
-    }
+                                            return view('dashboard.admin', compact('stats', 'chantiers_recents', 'notifications_recentes'));    }
 
     public function users(Request $request)
     {

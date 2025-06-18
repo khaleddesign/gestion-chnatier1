@@ -199,7 +199,17 @@
   .modal-content {
     @apply relative mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white;
   }
-  
+  .modal-header {
+    @apply mb-4 pb-2 border-b border-gray-200;
+}
+
+.modal-body {
+    @apply mb-4;
+}
+
+.modal-footer {
+    @apply pt-2 border-t border-gray-200 flex justify-end space-x-2;
+}
   /* Barres de progression */
   .progress {
     @apply w-full bg-gray-200 rounded-full h-2;

@@ -18,6 +18,15 @@ window.closeModal = function(modalId) {
     document.getElementById(modalId).classList.add('hidden');
     document.body.classList.remove('overflow-hidden');
 };
+// Fermer les modals avec la touche Escape
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        document.querySelectorAll('.modal-overlay:not(.hidden)').forEach(modal => {
+            modal.classList.add('hidden');
+        });
+        document.body.classList.remove('overflow-hidden');
+    }
+});
 
 // Fonction pour les notifications toast
 window.showToast = function(message, type = 'info') {
