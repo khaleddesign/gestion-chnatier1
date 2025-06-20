@@ -111,7 +111,7 @@
         </div>
     </div>
 
-    <!-- SECTION PHOTOS COMPACTE AVEC BOUTONS SUPPRIMER -->
+    <!-- SECTION PHOTOS COMPACTE -->
     <div class="bg-white shadow rounded-lg mb-6">
         <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
             <h2 class="text-lg font-medium text-gray-900 flex items-center">
@@ -133,38 +133,20 @@
             <div id="galerie-photos">
                 @if($chantier->hasPhotos())
                     <div class="flex space-x-2">
-                        <!-- Photo principale (format 16:9) avec bouton supprimer -->
-                        <div class="w-full md:w-2/3 relative group cursor-pointer">
+                        <!-- Photo principale (format 16:9) -->
+                        <div class="w-full md:w-2/3 relative cursor-pointer" onclick="ouvrirLightbox(0)">
                             <img src="{{ $chantier->photo_couverture->thumbnail_url }}" 
                                 alt="Photo principale" 
-                                class="w-full h-32 object-cover rounded-lg"
-                                onclick="ouvrirLightbox(0)">
-                            
-                            @can('update', $chantier)
-                                <button onclick="event.stopPropagation(); supprimerPhotoBladeDirecte({{ $chantier->photo_couverture->id }})" 
-                                        class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                        title="Supprimer cette photo">
-                                    ×
-                                </button>
-                            @endcan
+                                class="w-full h-32 object-cover rounded-lg">
                         </div>
                         
-                        <!-- Mini-photos en grille 2x2 avec boutons supprimer -->
+                        <!-- Mini-photos en grille 2x2 -->
                         <div class="w-full md:w-1/3 grid grid-cols-2 grid-rows-2 gap-2">
                             @foreach($chantier->photos_recentes->skip(1)->take(3) as $index => $photo)
-                                <div class="relative group cursor-pointer">
+                                <div class="relative cursor-pointer" onclick="ouvrirLightbox({{ $index + 1 }})">
                                     <img src="{{ $photo->thumbnail_url }}" 
                                         alt="Photo {{ $index + 2 }}" 
-                                        class="w-full h-12 object-cover rounded-lg"
-                                        onclick="ouvrirLightbox({{ $index + 1 }})">
-                                    
-                                    @can('update', $chantier)
-                                        <button onclick="event.stopPropagation(); supprimerPhotoBladeDirecte({{ $photo->id }})" 
-                                                class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                                title="Supprimer cette photo">
-                                            ×
-                                        </button>
-                                    @endcan
+                                        class="w-full h-12 object-cover rounded-lg">
                                 </div>
                             @endforeach
                             
@@ -174,19 +156,10 @@
                                     +{{ $chantier->photos_count - 4 }}
                                 </div>
                             @elseif($chantier->photos_recentes->count() > 3)
-                                <div class="relative group cursor-pointer">
+                                <div class="relative cursor-pointer" onclick="ouvrirLightbox(4)">
                                     <img src="{{ $chantier->photos_recentes[3]->thumbnail_url }}" 
                                         alt="Photo 5" 
-                                        class="w-full h-12 object-cover rounded-lg"
-                                        onclick="ouvrirLightbox(4)">
-                                    
-                                    @can('update', $chantier)
-                                        <button onclick="event.stopPropagation(); supprimerPhotoBladeDirecte({{ $chantier->photos_recentes[3]->id }})" 
-                                                class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                                title="Supprimer cette photo">
-                                            ×
-                                        </button>
-                                    @endcan
+                                        class="w-full h-12 object-cover rounded-lg">
                                 </div>
                             @endif
                         </div>
@@ -771,7 +744,6 @@
 // Variables globales pour la galerie
 let photosData = [];
 let currentPhotoIndex = 0;
-let canUpdateChantier = {{ Auth::user()->can('update', $chantier) ? 'true' : 'false' }};
 
 // Gestion des modales existantes
 window.openModal = function(modalId) {
@@ -1067,73 +1039,6 @@ async function chargerPhotos() {
     }
 }
 
-// Fonction pour supprimer directement depuis la galerie (section Blade)
-async function supprimerPhotoBladeDirecte(photoId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette photo ?')) return;
-    
-    try {
-        const response = await fetch(`/api/v2/photos/${photoId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('Photo supprimée avec succès', 'success');
-            
-            // Recharger la page pour mettre à jour la galerie Blade
-            setTimeout(() => {
-                window.location.reload();
-            }, 1000);
-            
-        } else {
-            showToast('Erreur lors de la suppression', 'error');
-        }
-    } catch (error) {
-        console.error('Erreur suppression:', error);
-        showToast('Erreur lors de la suppression', 'error');
-    }
-}
-
-// Fonction pour supprimer directement depuis la galerie (JavaScript)
-async function supprimerPhotoDirecte(photoId) {
-    if (!confirm('Êtes-vous sûr de vouloir supprimer cette photo ?')) return;
-    
-    try {
-        const response = await fetch(`/api/v2/photos/${photoId}`, {
-            method: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content,
-                'Accept': 'application/json'
-            }
-        });
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            showToast('Photo supprimée avec succès', 'success');
-            
-            // Recharger les photos de la galerie
-            chargerPhotos();
-            
-            // Mettre à jour le compteur
-            const compteur = document.getElementById('photos-count');
-            const currentCount = parseInt(compteur.textContent);
-            compteur.textContent = Math.max(0, currentCount - 1);
-            
-        } else {
-            showToast('Erreur lors de la suppression', 'error');
-        }
-    } catch (error) {
-        console.error('Erreur suppression:', error);
-        showToast('Erreur lors de la suppression', 'error');
-    }
-}
-
 function mettreAJourGalerie() {
     const galerieContainer = document.getElementById('galerie-photos');
     const photosCount = document.getElementById('photos-count');
@@ -1163,26 +1068,18 @@ function mettreAJourGalerie() {
     
     let html = `
         <div class="flex space-x-2">
-            <!-- Photo principale (format 16:9) avec bouton supprimer -->
-            <div class="w-full md:w-2/3 relative group cursor-pointer">
+            <!-- Photo principale (format 16:9) -->
+            <div class="w-full md:w-2/3 relative cursor-pointer" onclick="ouvrirLightbox(0)">
                 <img src="${photosData[0].thumbnail}" 
                      alt="${photosData[0].nom}" 
-                     class="w-full h-32 object-cover rounded-lg"
-                     onclick="ouvrirLightbox(0)">
-                ${canUpdateChantier ? `
-                    <button onclick="event.stopPropagation(); supprimerPhotoDirecte(${photosData[0].id})" 
-                            class="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-6 h-6 text-sm opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                            title="Supprimer cette photo">
-                        ×
-                    </button>
-                ` : ''}
+                     class="w-full h-32 object-cover rounded-lg">
             </div>
             
-            <!-- Mini-photos en grille 2x2 avec boutons supprimer -->
+            <!-- Mini-photos en grille 2x2 -->
             <div class="w-full md:w-1/3 grid grid-cols-2 grid-rows-2 gap-2">
     `;
     
-    // Ajouter les 3 miniatures suivantes avec boutons supprimer
+    // Ajouter les 3 miniatures suivantes
     for (let i = 1; i < Math.min(4, photosData.length); i++) {
         if (i === 3 && photosData.length > 4) {
             // Case "+X" pour indiquer qu'il y a plus de photos
@@ -1194,18 +1091,10 @@ function mettreAJourGalerie() {
             `;
         } else {
             html += `
-                <div class="relative group cursor-pointer">
+                <div class="relative cursor-pointer" onclick="ouvrirLightbox(${i})">
                     <img src="${photosData[i].thumbnail}" 
                          alt="${photosData[i].nom}" 
-                         class="w-full h-12 object-cover rounded-lg"
-                         onclick="ouvrirLightbox(${i})">
-                    ${canUpdateChantier ? `
-                        <button onclick="event.stopPropagation(); supprimerPhotoDirecte(${photosData[i].id})" 
-                                class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                                title="Supprimer cette photo">
-                            ×
-                        </button>
-                    ` : ''}
+                         class="w-full h-12 object-cover rounded-lg">
                 </div>
             `;
         }
@@ -1310,14 +1199,6 @@ function voirToutesPhotos() {
                 <div class="absolute bottom-0 left-0 right-0 bg-black bg-opacity-75 text-white text-xs p-1 rounded-b-lg">
                     <p class="truncate">${photo.nom}</p>
                 </div>
-                ${canUpdateChantier ? `
-                    <!-- Bouton supprimer dans la grille -->
-                    <button onclick="event.stopPropagation(); supprimerPhotoDirecte(${photo.id})" 
-                            class="absolute top-1 right-1 bg-red-500 hover:bg-red-600 text-white rounded-full w-5 h-5 text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
-                            title="Supprimer cette photo">
-                        ×
-                    </button>
-                ` : ''}
             </div>
         `;
     });
@@ -1381,7 +1262,7 @@ function showToast(message, type = 'info') {
     }, 5000);
 }
 
-console.log('Chantier show avec galerie photos et boutons supprimer chargé avec succès');
+console.log('Chantier show avec galerie photos chargé avec succès');
 </script>
 @endpush
 @endsection

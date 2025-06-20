@@ -155,7 +155,7 @@ class MessageController extends Controller
         // Créer une notification pour le destinataire
         Notification::create([
             'user_id' => $validated['recipient_id'],
-            'chantier_id' => $validated['chantier_id'] ?? null,
+'chantier_id' => !empty($validated['chantier_id']) ? $validated['chantier_id'] : null,
             'type' => 'nouveau_message',
             'titre' => 'Nouveau message',
             'message' => "Vous avez reçu un nouveau message de {$user->name}: {$validated['subject']}",
