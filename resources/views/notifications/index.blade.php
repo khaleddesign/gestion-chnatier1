@@ -70,7 +70,7 @@
                                             @if($notification->chantier)
                                                 <span class="flex items-center">
                                                     <i class="fas fa-building mr-1"></i>
-                                                    <a href="{{ route('notifications.view', $notification) }}" 
+                                                   <a href="{{ route('notifications.read', $notification) }}"
                                                        class="text-primary-600 hover:text-primary-800 font-medium">
                                                         {{ $notification->chantier->titre }}
                                                     </a>
@@ -90,14 +90,14 @@
                                             </form>
                                         @endif
                                         @if($notification->chantier)
-                                            <a href="{{ route('notifications.view', $notification) }}" 
+                                           <a href="{{ route('notifications.read', $notification) }}"
                                                class="btn btn-primary btn-sm">
                                                 <i class="fas fa-eye mr-1"></i>Voir{{ !$notification->lu ? ' & Marquer lu' : '' }}
                                             </a>
                                         @else
                                             {{-- Pour les notifications sans chantier --}}
                                             @if(!$notification->lu)
-                                                <a href="{{ route('notifications.view', $notification) }}" 
+                                                <a href="{{ route('notifications.read', $notification) }}" 
                                                    class="btn btn-primary btn-sm">
                                                     <i class="fas fa-check mr-1"></i>Marquer comme lu
                                                 </a>

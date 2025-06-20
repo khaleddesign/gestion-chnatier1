@@ -15,6 +15,8 @@ use App\Http\Controllers\MessageController;
 
 // ✅ IMPORTS API avec ALIAS pour éviter les conflits
 use App\Http\Controllers\Api\PhotoController as ApiPhotoController;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 /*
 |--------------------------------------------------------------------------
@@ -94,6 +96,7 @@ Route::middleware(['auth'])->group(function () {
     // Notifications
     Route::prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
+        Route::get('{notification}', [NotificationController::class, 'view'])->name('notifications.view');  // ← AJOUTER CETTE LIGNE
         Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
         Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
     });
@@ -115,6 +118,18 @@ Route::middleware(['auth'])->group(function () {
     Route::prefix('api')->group(function () {
         // Upload de photos
         Route::post('photos/upload', [ApiPhotoController::class, 'upload'])->name('api.photos.upload');
+        
+        // Routes API v2 pour photos (AUTHENTIFIÉES)
+        Route::prefix('v2')->group(function () {
+            Route::get('chantiers/{chantier}/photos', [ApiPhotoController::class, 'getChantierPhotos'])->name('api.v2.chantiers.photos');
+            Route::post('photos/upload', [ApiPhotoController::class, 'upload'])->name('api.v2.photos.upload');
+            Route::get('photos/all', [ApiPhotoController::class, 'getAllUserPhotos'])->name('api.v2.photos.all');
+            Route::get('photos/{photo}', [ApiPhotoController::class, 'show'])->name('api.v2.photos.show');
+            Route::put('photos/{photo}', [ApiPhotoController::class, 'update'])->name('api.v2.photos.update');
+            Route::delete('photos/{photo}', [ApiPhotoController::class, 'destroy'])->name('api.v2.photos.destroy');
+            Route::get('photos/{photo}/download', [ApiPhotoController::class, 'download'])->name('api.v2.photos.download');
+            Route::get('photos/search', [ApiPhotoController::class, 'search'])->name('api.v2.photos.search');
+        });
         
         Route::get('chantiers/{chantier}/avancement', function (App\Models\Chantier $chantier) {
             // Vérification des autorisations
@@ -189,4 +204,137 @@ Route::fallback(function () {
         return response()->json(['error' => 'Route non trouvée'], 404);
     }
     return response()->view('errors.404', [], 404);
+});
+
+// ===========================================
+// ROUTES DE DEBUG UPLOAD (utiles pour diagnostics)
+// ===========================================
+
+// Route de test pour diagnostiquer l'upload
+Route::get('/test-upload-form', function() {
+    return view('test-upload');
+})->name('test.upload.form');
+
+Route::post('/test-upload-process', function(Request $request) {
+    $info = [
+        'timestamp' => now(),
+        'php_config' => [
+            'upload_max_filesize' => ini_get('upload_max_filesize'),
+            'post_max_size' => ini_get('post_max_size'),
+            'max_file_uploads' => ini_get('max_file_uploads'),
+            'memory_limit' => ini_get('memory_limit'),
+        ],
+        'request_info' => [
+            'has_files' => $request->hasFile('test_file'),
+            'files_count' => $request->hasFile('test_file') ? 1 : 0,
+            'content_length' => $request->header('Content-Length'),
+            'content_type' => $request->header('Content-Type'),
+        ],
+        'storage_info' => [
+            'storage_path' => storage_path('app/public'),
+            'storage_exists' => is_dir(storage_path('app/public')),
+            'storage_writable' => is_writable(storage_path('app/public')),
+            'public_link_exists' => is_link(public_path('storage')),
+            'public_link_target' => is_link(public_path('storage')) ? readlink(public_path('storage')) : null,
+        ]
+    ];
+    
+    if ($request->hasFile('test_file')) {
+        $file = $request->file('test_file');
+        $info['file_info'] = [
+            'original_name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'mime_type' => $file->getMimeType(),
+            'is_valid' => $file->isValid(),
+            'error_code' => $file->getError(),
+            'error_message' => $file->getErrorMessage(),
+        ];
+        
+        try {
+            // Test d'upload simple
+            $path = $file->store('test', 'public');
+            $info['upload_result'] = [
+                'success' => true,
+                'path' => $path,
+                'full_path' => storage_path('app/public/' . $path),
+                'file_exists' => Storage::disk('public')->exists($path),
+            ];
+            
+            // Nettoyer le fichier test
+            Storage::disk('public')->delete($path);
+            
+        } catch (\Exception $e) {
+            $info['upload_result'] = [
+                'success' => false,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ];
+        }
+    }
+    
+    return response()->json($info, 200, [], JSON_PRETTY_PRINT);
+})->name('test.upload.process');
+
+// Route simple pour tester la config
+Route::get('/debug-config', function() {
+    $info = [
+        'upload_max_filesize' => ini_get('upload_max_filesize'),
+        'post_max_size' => ini_get('post_max_size'),
+        'max_file_uploads' => ini_get('max_file_uploads'),
+        'storage_path' => storage_path('app/public'),
+        'storage_writable' => is_writable(storage_path('app/public')),
+        'public_storage_exists' => file_exists(public_path('storage')),
+        'app_url' => env('APP_URL'),
+        'filesystem_disk' => env('FILESYSTEM_DISK'),
+    ];
+    
+    return "<pre>" . print_r($info, true) . "</pre>";
+});
+
+// Test simple d'upload
+Route::get('/test-upload-simple', function() {
+    return '
+    <!DOCTYPE html>
+    <html>
+    <head><title>Test Upload Simple</title></head>
+    <body>
+        <h2>Test Upload Simple</h2>
+        <form action="/test-upload-simple" method="POST" enctype="multipart/form-data">
+            ' . csrf_field() . '
+            <input type="file" name="test_file" required><br><br>
+            <button type="submit">Upload Test</button>
+        </form>
+    </body>
+    </html>';
+});
+
+Route::post('/test-upload-simple', function(Request $request) {
+    try {
+        if (!$request->hasFile('test_file')) {
+            return "Aucun fichier reçu";
+        }
+        
+        $file = $request->file('test_file');
+        
+        $info = [
+            'file_received' => true,
+            'original_name' => $file->getClientOriginalName(),
+            'size' => $file->getSize(),
+            'is_valid' => $file->isValid(),
+            'error' => $file->getError(),
+            'error_message' => $file->getErrorMessage(),
+        ];
+        
+        if ($file->isValid()) {
+            $path = $file->store('test-uploads', 'public');
+            $info['upload_success'] = true;
+            $info['stored_path'] = $path;
+            $info['file_exists'] = Storage::disk('public')->exists($path);
+        }
+        
+        return "<pre>" . print_r($info, true) . "</pre>";
+        
+    } catch (\Exception $e) {
+        return "Erreur: " . $e->getMessage() . "<br>Trace: " . $e->getTraceAsString();
+    }
 });

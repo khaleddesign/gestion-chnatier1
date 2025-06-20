@@ -10,7 +10,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Str;
-use Intervention\Image\Facades\Image;
 
 class PhotoController extends Controller
 {
@@ -21,6 +20,15 @@ class PhotoController extends Controller
     {
         try {
             $user = Auth::user();
+            
+            // Vérifier que l'utilisateur est connecté
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
             $query = Photo::query();
             
             // Filtrer selon le rôle de l'utilisateur
@@ -70,8 +78,16 @@ class PhotoController extends Controller
     public function getChantierPhotos(Chantier $chantier): JsonResponse
     {
         try {
-            // Vérifier que l'utilisateur a accès à ce chantier
+            // Vérifier que l'utilisateur est connecté
             $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
+            // Vérifier que l'utilisateur a accès à ce chantier
             $canAccess = $user->isAdmin() || 
                          $chantier->client_id === $user->id || 
                          $chantier->commercial_id === $user->id;
@@ -121,8 +137,16 @@ class PhotoController extends Controller
     public function show(Photo $photo): JsonResponse
     {
         try {
-            // Vérifier l'accès
+            // Vérifier que l'utilisateur est connecté
             $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
+            // Vérifier l'accès
             $chantier = $photo->chantier;
             $canAccess = $user->isAdmin() || 
                          $chantier->client_id === $user->id || 
@@ -164,8 +188,13 @@ class PhotoController extends Controller
     public function download(Photo $photo)
     {
         try {
-            // Vérifier l'accès
+            // Vérifier que l'utilisateur est connecté
             $user = Auth::user();
+            if (!$user) {
+                abort(401, 'Authentification requise');
+            }
+            
+            // Vérifier l'accès
             $chantier = $photo->chantier;
             $canAccess = $user->isAdmin() || 
                          $chantier->client_id === $user->id || 
@@ -191,7 +220,7 @@ class PhotoController extends Controller
     }
 
     /**
-     * Upload de nouvelles photos avec création de miniatures
+     * Upload de nouvelles photos (version simplifiée sans Intervention Image)
      */
     public function upload(Request $request): JsonResponse
     {
@@ -202,10 +231,18 @@ class PhotoController extends Controller
         ]);
 
         try {
+            // Vérifier que l'utilisateur est connecté
+            $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
             $chantier = Chantier::findOrFail($request->chantier_id);
             
             // Vérifier l'accès
-            $user = Auth::user();
             $canAccess = $user->isAdmin() || 
                          $chantier->client_id === $user->id || 
                          $chantier->commercial_id === $user->id;
@@ -225,55 +262,30 @@ class PhotoController extends Controller
                     // Générer un nom unique
                     $fileName = time() . '_' . Str::random(10) . '.' . $file->getClientOriginalExtension();
                     
-                    // Définir les chemins
+                    // Définir le chemin
                     $originalDir = 'photos/chantiers/' . $chantier->id;
-                    $thumbnailDir = 'photos/chantiers/' . $chantier->id . '/thumbnails';
-                    
-                    // Créer le répertoire des miniatures s'il n'existe pas
-                    if (!Storage::disk('public')->exists($thumbnailDir)) {
-                        Storage::disk('public')->makeDirectory($thumbnailDir);
-                    }
-                    
                     $originalPath = $originalDir . '/' . $fileName;
-                    $thumbnailPath = $thumbnailDir . '/' . $fileName;
                     
-                    // Stocker l'image originale
-                    Storage::disk('public')->put($originalPath, file_get_contents($file));
+                    // Stocker l'image
+                    $path = $file->storeAs($originalDir, $fileName, 'public');
                     
-                    // Créer la miniature au format 16:9
-                    $thumbnail = Image::make($file);
-                    $width = 400; // Largeur de la miniature
-                    $height = round($width * 9 / 16); // Format 16:9
-                    $thumbnail->fit($width, $height);
-                    
-                    // Stocker la miniature
-                    Storage::disk('public')->put($thumbnailPath, (string) $thumbnail->encode());
-                    
-                    // Extraire les métadonnées EXIF si disponibles
-                    $exifData = [];
-                    try {
-                        $exifData = $thumbnail->exif() ?? [];
-                    } catch (\Exception $exifError) {
-                        // Ignorer les erreurs EXIF
+                    if (!$path) {
+                        $errorCount++;
+                        continue;
                     }
                     
                     // Créer l'enregistrement en base
                     $photo = Photo::create([
                         'chantier_id' => $chantier->id,
                         'nom' => $file->getClientOriginalName(),
-                        'chemin' => 'public/' . $originalPath,
-                        'thumbnail' => 'public/' . $thumbnailPath,
+                        'chemin' => 'public/' . $path,
+                        'thumbnail' => 'public/' . $path, // Même image pour l'instant
                         'taille' => $file->getSize(),
                         'type_mime' => $file->getMimeType(),
                         'metadata' => [
                             'original_name' => $file->getClientOriginalName(),
-                            'uploaded_by' => Auth::id(),
+                            'uploaded_by' => $user->id,
                             'upload_date' => now(),
-                            'dimensions' => [
-                                'width' => $thumbnail->width(),
-                                'height' => $thumbnail->height()
-                            ],
-                            'exif' => $exifData
                         ]
                     ]);
 
@@ -283,31 +295,6 @@ class PhotoController extends Controller
                         'url' => Storage::url($photo->chemin),
                         'thumbnail' => Storage::url($photo->thumbnail),
                     ];
-
-                    // Créer une notification pour le commercial si c'est un client qui upload
-                    if ($user->isClient() && $chantier->commercial) {
-                        $chantier->commercial->notifications()->create([
-                            'titre' => 'Nouvelles photos ajoutées',
-                            'message' => "Le client {$chantier->client->name} a ajouté des photos au projet {$chantier->titre}",
-                            'type' => 'nouvelle_photo',
-                            'data' => [
-                                'chantier_id' => $chantier->id,
-                                'photo_id' => $photo->id,
-                            ]
-                        ]);
-                    }
-                    // Notification pour le client si c'est le commercial qui upload
-                    elseif ($user->isCommercial() && $chantier->client) {
-                        $chantier->client->notifications()->create([
-                            'titre' => 'Nouvelles photos ajoutées',
-                            'message' => "Votre commercial a ajouté des photos au projet {$chantier->titre}",
-                            'type' => 'nouvelle_photo',
-                            'data' => [
-                                'chantier_id' => $chantier->id,
-                                'photo_id' => $photo->id,
-                            ]
-                        ]);
-                    }
 
                 } catch (\Exception $e) {
                     $errorCount++;
@@ -351,8 +338,16 @@ class PhotoController extends Controller
         ]);
 
         try {
-            // Vérifier l'accès
+            // Vérifier que l'utilisateur est connecté
             $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
+            // Vérifier l'accès
             $chantier = $photo->chantier;
             $canEdit = $user->isAdmin() || 
                        $chantier->client_id === $user->id || 
@@ -391,8 +386,16 @@ class PhotoController extends Controller
     public function destroy(Photo $photo): JsonResponse
     {
         try {
-            // Vérifier l'accès
+            // Vérifier que l'utilisateur est connecté
             $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
+            // Vérifier l'accès
             $chantier = $photo->chantier;
             $canDelete = $user->isAdmin() || 
                         $chantier->client_id === $user->id || 
@@ -442,7 +445,15 @@ class PhotoController extends Controller
         ]);
 
         try {
+            // Vérifier que l'utilisateur est connecté
             $user = Auth::user();
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Authentification requise'
+                ], 401);
+            }
+            
             $query = Photo::query();
             
             // Filtrer selon le rôle
@@ -495,21 +506,5 @@ class PhotoController extends Controller
                 'message' => 'Erreur lors de la recherche: ' . $e->getMessage()
             ], 500);
         }
-    }
-    
-    /**
-     * Génère une miniature au format 16:9
-     */
-    private function createThumbnail($image, $width = 400)
-    {
-        $img = Image::make($image);
-        
-        // Calculer la hauteur pour un ratio 16:9
-        $height = round($width * 9 / 16);
-        
-        // Redimensionner et recadrer l'image
-        $img->fit($width, $height);
-        
-        return $img;
     }
 }

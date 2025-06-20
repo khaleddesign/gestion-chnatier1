@@ -68,4 +68,24 @@ class NotificationController extends Controller
         return redirect()->route('notifications.index')
                         ->with('success', 'Notification marquée comme lue.');
     }
+    public function view(Notification $notification)
+{
+    if ($notification->user_id !== Auth::id()) {
+        abort(403);
+    }
+    
+    // Marquer comme lue si pas encore lu
+    if (!$notification->lu) {
+        $notification->marquerLue();
+    }
+    
+    // Rediriger vers le chantier si la notification en a un
+    if ($notification->chantier_id) {
+        return redirect()->route('chantiers.show', $notification->chantier_id);
+    }
+    
+    // Sinon retourner au dashboard
+    return redirect()->route('dashboard');
 }
+}
+
