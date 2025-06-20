@@ -389,3 +389,23 @@ class ApiDashboardController extends Controller
         ]);
     }
 }
+
+
+Route::middleware('auth:sanctum')->group(function () {
+    // API Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/unread-count', [App\Http\Controllers\Api\NotificationController::class, 'getUnreadCount']);
+        Route::get('/', [App\Http\Controllers\Api\NotificationController::class, 'index']);
+        Route::post('/{notification}/read', [App\Http\Controllers\Api\NotificationController::class, 'markAsRead']);
+        Route::post('/mark-all-read', [App\Http\Controllers\Api\NotificationController::class, 'markAllAsRead']);
+    });
+    
+    // API Messages
+    Route::prefix('messages')->group(function () {
+        Route::get('/unread-count', function() {
+            return response()->json(['count' => Auth::user()->getUnreadMessagesCount()]);
+        });
+        Route::get('/', [MessageController::class, 'index']);
+        Route::post('/', [MessageController::class, 'store']);
+    });
+});

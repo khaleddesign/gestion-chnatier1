@@ -94,22 +94,27 @@ Route::middleware(['auth'])->group(function () {
     Route::delete('commentaires/{commentaire}', [CommentaireController::class, 'destroy'])->name('commentaires.destroy');
     
     // Notifications
-    Route::prefix('notifications')->group(function () {
+    Route::middleware(['auth'])->prefix('notifications')->group(function () {
         Route::get('/', [NotificationController::class, 'index'])->name('notifications.index');
-        Route::get('{notification}', [NotificationController::class, 'view'])->name('notifications.view');  // ← AJOUTER CETTE LIGNE
-        Route::post('{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
-        Route::post('mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+        
+        // ✅ ROUTE PRINCIPALE - Voir et marquer comme lue
+        Route::get('/{notification}/view', [NotificationController::class, 'viewAndMarkAsRead'])->name('notifications.view');
+        
+        // ✅ ROUTE SÉPARÉE - Juste marquer comme lue (pour AJAX)
+        Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+        
+        // ✅ ROUTE POUR TOUT MARQUER COMME LU
+        Route::post('/mark-all-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
     });
 
     // Routes pour les messages
-    Route::prefix('messages')->group(function () {
+    Route::middleware(['auth'])->prefix('messages')->group(function () {
         Route::get('/', [MessageController::class, 'index'])->name('messages.index');
         Route::get('/sent', [MessageController::class, 'sent'])->name('messages.sent');
         Route::get('/create', [MessageController::class, 'create'])->name('messages.create');
         Route::post('/', [MessageController::class, 'store'])->name('messages.store');
         Route::get('/{message}', [MessageController::class, 'show'])->name('messages.show');
         Route::get('/{message}/reply', [MessageController::class, 'reply'])->name('messages.reply');
-        Route::get('/modal', [MessageController::class, 'modal'])->name('messages.modal');
     });
 
     // ================================

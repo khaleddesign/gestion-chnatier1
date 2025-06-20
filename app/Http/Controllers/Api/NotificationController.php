@@ -10,7 +10,7 @@ use Illuminate\Http\JsonResponse;
 class NotificationController extends Controller
 {
     /**
-     * Obtenir le nombre de notifications non lues
+     * ✅ Obtenir le nombre de notifications non lues
      */
     public function getUnreadCount(): JsonResponse
     {
@@ -33,30 +33,58 @@ class NotificationController extends Controller
     }
 
     /**
-     * Obtenir toutes les notifications
+     * ✅ Obtenir toutes les notifications avec filtres
      */
     public function index(Request $request): JsonResponse
     {
         try {
-            $notifications = Auth::user()->notifications()
-                ->orderBy('created_at', 'desc')
-                ->take(20)
-                ->get()
-                ->map(function ($notification) {
-                    return [
-                        'id' => $notification->id,
-                        'titre' => $notification->titre,
-                        'message' => $notification->message,
-                        'lu' => $notification->lu,
-                        'type' => $notification->type,
-                        'date' => $notification->created_at->format('d/m/Y H:i'),
-                        'date_relative' => $notification->created_at->diffForHumans(),
-                    ];
-                });
+            $query = Auth::user()->notifications()
+                ->with('chantier:id,titre')
+                ->orderBy('created_at', 'desc');
+
+            // Filtres
+            if ($request->filled('filter')) {
+                switch ($request->filter) {
+                    case 'unread':
+                        $query->where('lu', false);
+                        break;
+                    case 'read':
+                        $query->where('lu', true);
+                        break;
+                    case 'type':
+                        if ($request->filled('type')) {
+                            $query->where('type', $request->type);
+                        }
+                        break;
+                }
+            }
+
+            // Limite pour l'API (éviter de surcharger)
+            $limit = min($request->get('limit', 20), 50);
+            $notifications = $query->take($limit)->get();
+
+            $formattedNotifications = $notifications->map(function ($notification) {
+                return [
+                    'id' => $notification->id,
+                    'titre' => $notification->titre,
+                    'message' => $notification->message,
+                    'lu' => $notification->lu,
+                    'type' => $notification->type,
+                    'chantier' => $notification->chantier ? [
+                        'id' => $notification->chantier->id,
+                        'titre' => $notification->chantier->titre
+                    ] : null,
+                    'date' => $notification->created_at->format('d/m/Y H:i'),
+                    'date_relative' => $notification->created_at->diffForHumans(),
+                    'lu_at' => $notification->lu_at?->format('d/m/Y H:i'),
+                ];
+            });
 
             return response()->json([
                 'success' => true,
-                'notifications' => $notifications
+                'notifications' => $formattedNotifications,
+                'total' => $notifications->count(),
+                'unread_count' => Auth::user()->notifications()->where('lu', false)->count()
             ]);
 
         } catch (\Exception $e) {
@@ -68,14 +96,13 @@ class NotificationController extends Controller
     }
 
     /**
-     * Voir une notification et la marquer comme lue (NOUVELLE MÉTHODE)
+     * ✅ Marquer une notification comme lue
      */
-    public function viewAndMarkAsRead($notification): JsonResponse
+    public function markAsRead($notification): JsonResponse
     {
         try {
             $notif = Auth::user()->notifications()->findOrFail($notification);
             
-            // Marquer comme lue si elle ne l'est pas déjà
             if (!$notif->lu) {
                 $notif->update([
                     'lu' => true,
@@ -83,48 +110,14 @@ class NotificationController extends Controller
                 ]);
             }
 
-            // Préparer l'URL de redirection si un chantier est associé
-            $redirectUrl = null;
-            if ($notif->chantier_id) {
-                $redirectUrl = route('chantiers.show', $notif->chantier_id);
-            }
-
             return response()->json([
                 'success' => true,
                 'message' => 'Notification marquée comme lue',
-                'redirect_url' => $redirectUrl,
                 'notification' => [
                     'id' => $notif->id,
-                    'titre' => $notif->titre,
-                    'message' => $notif->message,
                     'lu' => true,
-                    'chantier_id' => $notif->chantier_id
+                    'lu_at' => $notif->lu_at->format('d/m/Y H:i')
                 ]
-            ]);
-
-        } catch (\Exception $e) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Erreur lors de la consultation de la notification'
-            ], 500);
-        }
-    }
-
-    /**
-     * Marquer une notification comme lue
-     */
-    public function markAsRead($notification): JsonResponse
-    {
-        try {
-            $notif = Auth::user()->notifications()->findOrFail($notification);
-            $notif->update([
-                'lu' => true,
-                'lu_at' => now()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Notification marquée comme lue'
             ]);
 
         } catch (\Exception $e) {
@@ -136,7 +129,7 @@ class NotificationController extends Controller
     }
 
     /**
-     * Marquer toutes les notifications comme lues
+     * ✅ Marquer toutes les notifications comme lues
      */
     public function markAllAsRead(): JsonResponse
     {
@@ -150,7 +143,8 @@ class NotificationController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => "{$count} notification(s) marquée(s) comme lue(s)"
+                'message' => "{$count} notification(s) marquée(s) comme lue(s)",
+                'count' => $count
             ]);
 
         } catch (\Exception $e) {
@@ -162,7 +156,7 @@ class NotificationController extends Controller
     }
 
     /**
-     * Supprimer une notification
+     * ✅ Supprimer une notification
      */
     public function destroy($notification): JsonResponse
     {

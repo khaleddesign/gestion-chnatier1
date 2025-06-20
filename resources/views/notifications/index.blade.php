@@ -6,100 +6,124 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6">
         <h1 class="text-3xl font-bold text-gray-900 flex items-center mb-4 sm:mb-0">
-            <i class="fas fa-bell mr-3 text-primary-600"></i>Mes Notifications
+            <svg class="w-8 h-8 mr-3 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM9 7H4l5-5v5zm6 6l-2-2v6l2-2h6v-2H15z"/>
+            </svg>
+            Mes Notifications
         </h1>
-        @if($notifications->where('lu', false)->count() > 0)
-            <form method="POST" action="{{ route('notifications.mark-all-read') }}">
+        
+        @if(Auth::user()->getNotificationsNonLues() > 0)
+            <form method="POST" action="{{ route('notifications.mark-all-read') }}" class="inline">
                 @csrf
-                <button type="submit" class="btn btn-outline-primary">
-                    <i class="fas fa-check-double mr-2"></i>Tout marquer comme lu
+                <button type="submit" class="btn-outline">
+                    <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Tout marquer comme lu
                 </button>
             </form>
         @endif
     </div>
     
-    <!-- Filtres -->
-    <div class="card mb-6">
-        <div class="card-body">
+    {{-- ✅ FILTRES AMÉLIORÉS --}}
+    <div class="bg-white rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div class="px-6 py-4">
             <div class="flex flex-wrap gap-2">
                 <a href="{{ route('notifications.index') }}" 
-                   class="btn {{ !request('filter') ? 'btn-primary' : 'btn-outline-primary' }}">
-                    Toutes
+                   class="px-4 py-2 rounded-md text-sm font-medium {{ !request('filter') ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
+                    Toutes ({{ Auth::user()->notifications()->count() }})
                 </a>
                 <a href="{{ route('notifications.index', ['filter' => 'unread']) }}" 
-                   class="btn {{ request('filter') == 'unread' ? 'btn-primary' : 'btn-outline-primary' }}">
+                   class="px-4 py-2 rounded-md text-sm font-medium {{ request('filter') == 'unread' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
                     Non lues ({{ Auth::user()->notifications()->where('lu', false)->count() }})
                 </a>
                 <a href="{{ route('notifications.index', ['filter' => 'read']) }}" 
-                   class="btn {{ request('filter') == 'read' ? 'btn-primary' : 'btn-outline-primary' }}">
+                   class="px-4 py-2 rounded-md text-sm font-medium {{ request('filter') == 'read' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200' }}">
                     Lues
                 </a>
             </div>
         </div>
     </div>
     
-    <!-- Liste des notifications -->
+    {{-- ✅ LISTE DES NOTIFICATIONS AMÉLIORÉE --}}
     @if($notifications->count() > 0)
         <div class="space-y-4">
             @foreach($notifications as $notification)
-                <div class="card {{ !$notification->lu ? 'border-primary-400 bg-primary-50' : 'border-gray-200' }} hover:shadow-md transition-shadow">
-                    <div class="card-body">
-                        <div class="flex items-center space-x-4">
-                            <!-- Icône de notification -->
+                <div class="bg-white rounded-lg shadow-sm border {{ !$notification->lu ? 'border-blue-300 bg-blue-50' : 'border-gray-200' }} hover:shadow-md transition-shadow">
+                    <div class="p-6">
+                        <div class="flex items-start space-x-4">
+                            {{-- Icône de notification --}}
                             <div class="flex-shrink-0">
-                                <div class="w-12 h-12 rounded-full {{ !$notification->lu ? 'bg-primary-500' : 'bg-gray-400' }} text-white flex items-center justify-center">
+                                <div class="w-12 h-12 rounded-full {{ !$notification->lu ? 'bg-blue-500' : 'bg-gray-400' }} text-white flex items-center justify-center">
                                     <i class="{{ getNotificationIcon($notification->type) }} text-lg"></i>
                                 </div>
                             </div>
                             
-                            <!-- Contenu principal -->
+                            {{-- Contenu principal --}}
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between">
                                     <div class="flex-1">
-                                        <h5 class="text-lg font-semibold text-gray-900 mb-1 flex items-center">
+                                        <h3 class="text-lg font-semibold text-gray-900 mb-1 flex items-center">
                                             {{ $notification->titre }}
                                             @if(!$notification->lu)
-                                                <span class="badge badge-primary ml-2">Nouveau</span>
+                                                <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                                    Nouveau
+                                                </span>
                                             @endif
-                                        </h5>
-                                        <p class="text-gray-700 mb-2">{{ $notification->message }}</p>
+                                        </h3>
+                                        <p class="text-gray-700 mb-3">{{ $notification->message }}</p>
+                                        
                                         <div class="flex flex-wrap items-center gap-4 text-sm text-gray-500">
                                             <span class="flex items-center">
-                                                <i class="fas fa-clock mr-1"></i>{{ $notification->created_at->diffForHumans() }}
+                                                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                </svg>
+                                                {{ $notification->created_at->diffForHumans() }}
                                             </span>
+                                            
                                             @if($notification->chantier)
                                                 <span class="flex items-center">
-                                                    <i class="fas fa-building mr-1"></i>
-                                                   <a href="{{ route('notifications.read', $notification) }}"
-                                                       class="text-primary-600 hover:text-primary-800 font-medium">
-                                                        {{ $notification->chantier->titre }}
-                                                    </a>
+                                                    <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/>
+                                                    </svg>
+                                                    {{ $notification->chantier->titre }}
                                                 </span>
                                             @endif
                                         </div>
                                     </div>
                                     
-                                    <!-- Actions MISES À JOUR -->
+                                    {{-- ✅ ACTIONS CORRIGÉES --}}
                                     <div class="flex items-center space-x-2 ml-4">
                                         @if(!$notification->lu)
+                                            {{-- Bouton marquer comme lu seulement --}}
                                             <form method="POST" action="{{ route('notifications.read', $notification) }}" class="inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-outline-secondary btn-sm" title="Marquer comme lu seulement">
-                                                    <i class="fas fa-check"></i>
+                                                <button type="submit" class="inline-flex items-center px-3 py-1 border border-gray-300 rounded-md text-sm text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" title="Marquer comme lu">
+                                                    <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                    </svg>
                                                 </button>
                                             </form>
                                         @endif
+                                        
+                                        {{-- Bouton voir (avec chantier) ou marquer lu (sans chantier) --}}
                                         @if($notification->chantier)
-                                           <a href="{{ route('notifications.read', $notification) }}"
-                                               class="btn btn-primary btn-sm">
-                                                <i class="fas fa-eye mr-1"></i>Voir{{ !$notification->lu ? ' & Marquer lu' : '' }}
+                                            <a href="{{ route('notifications.view', $notification) }}"
+                                               class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+                                                <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                                </svg>
+                                                Voir{{ !$notification->lu ? ' & Marquer lu' : '' }}
                                             </a>
                                         @else
-                                            {{-- Pour les notifications sans chantier --}}
                                             @if(!$notification->lu)
-                                                <a href="{{ route('notifications.read', $notification) }}" 
-                                                   class="btn btn-primary btn-sm">
-                                                    <i class="fas fa-check mr-1"></i>Marquer comme lu
+                                                <a href="{{ route('notifications.view', $notification) }}" 
+                                                   class="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700">
+                                                    <svg class="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                                    </svg>
+                                                    Marquer comme lu
                                                 </a>
                                             @endif
                                         @endif
@@ -108,27 +132,34 @@
                             </div>
                         </div>
                     </div>
+                    
+                    {{-- Pied de notification pour les lues --}}
                     @if($notification->lu && $notification->lu_at)
-                        <div class="card-footer bg-gray-50">
-                            <small class="text-gray-500">
+                        <div class="px-6 py-3 bg-gray-50 border-t border-gray-200 rounded-b-lg">
+                            <p class="text-sm text-gray-500">
                                 Lu le {{ $notification->lu_at->format('d/m/Y à H:i') }}
-                            </small>
+                            </p>
                         </div>
                     @endif
                 </div>
             @endforeach
         </div>
         
-        <!-- Pagination -->
-        <div class="flex justify-center mt-8">
-            {{ $notifications->links() }}
-        </div>
+        {{-- Pagination --}}
+        @if($notifications->hasPages())
+            <div class="mt-8">
+                {{ $notifications->links() }}
+            </div>
+        @endif
     @else
-        <div class="card">
-            <div class="card-body text-center py-12">
-                <i class="fas fa-bell-slash text-6xl text-gray-400 mb-6"></i>
-                <h4 class="text-xl font-semibold text-gray-900 mb-2">Aucune notification</h4>
-                <p class="text-gray-500">
+        {{-- État vide --}}
+        <div class="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div class="text-center py-12">
+                <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-5 5v-5zM9 7H4l5-5v5z"/>
+                </svg>
+                <h3 class="mt-2 text-lg font-medium text-gray-900">Aucune notification</h3>
+                <p class="mt-1 text-gray-500">
                     @if(request('filter') == 'unread')
                         Vous avez lu toutes vos notifications !
                     @else
@@ -139,20 +170,4 @@
         </div>
     @endif
 </div>
-
-@php
-function getNotificationIcon($type) {
-    return match($type) {
-        'nouveau_chantier' => 'fas fa-plus-circle',
-        'changement_statut' => 'fas fa-sync',
-        'nouvelle_etape' => 'fas fa-tasks',
-        'etape_terminee' => 'fas fa-check-circle',
-        'nouveau_document' => 'fas fa-file',
-        'nouveau_commentaire_client' => 'fas fa-comment',
-        'nouveau_commentaire_commercial' => 'fas fa-reply',
-        'chantier_retard' => 'fas fa-exclamation-triangle',
-        default => 'fas fa-bell'
-    };
-}
-@endphp
 @endsection
